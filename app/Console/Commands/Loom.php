@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use GuzzleHttp\Client;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\File;
 
 class Loom extends Command
 {
@@ -52,9 +53,11 @@ class Loom extends Command
         foreach ($fileManifest->deleteGroup as $fileAssign) {
             if ($fileAssign->role != 'migration') {
                 $this->deleteFile($fileAssign);
-
             }
+        }
 
+        foreach ($fileManifest->updateGroup as $fileAssign) {
+            $this->createFile($fileAssign);
         }
 
         return 0;
@@ -88,5 +91,29 @@ class Loom extends Command
 
         }
     }
+
+    private function createFile($fileAssign)
+    {
+        if (!$fileAssign->active) {
+            return;
+        }
+
+        $fullPath = str_replace('[base]', base_path(), $fileAssign->path);
+        $sections = explode('/', $fullPath);
+        array_pop($sections);
+        $directory = implode('/', $sections);
+
+        if ( !File::isDirectory($directory) ) {
+            File::makeDirectory($directory, 0777, true);
+        }
+        //  print_r($fileAssign->id);
+        //  print_r($fileAssign->path);
+        //    print_r($fileAssign->content);
+
+         $status = File::put($fullPath, $fileAssign->content, true);
+        echo $status."\n";
+
+    }
+
 
 }
