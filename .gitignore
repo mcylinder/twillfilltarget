@@ -13,3 +13,4 @@ yarn-error.log
 /Vagrantfile
 /.idea/*
 workspace.xml
+.DS_Store
