@@ -75,21 +75,20 @@ class Loom extends Command
 
     }
 
-    private function updateStatus($id, $action)
+    private function updateStatus($id, $version_hash)
     {
 
         $client = new Client();
 
-        if ($action == 'delete') {
-            $endpoint = config('twill.loop_api') . '/update';
-            $response = $client->post($endpoint)->getBody()->getContents();
+        $endpoint = config('twill.loop_api') . '/update';
 
-            $client->request('POST', $endpoint, [
+        $client->request('POST', $endpoint, [
+            'form_params' => [
                 'id' => $id,
-                'version_hash' => 'delete',
-            ]);
+                'version_hash' => $version_hash,
+            ]
+        ]);
 
-        }
     }
 
     private function createFile($fileAssign)
@@ -103,15 +102,14 @@ class Loom extends Command
         array_pop($sections);
         $directory = implode('/', $sections);
 
-        if ( !File::isDirectory($directory) ) {
+        if (!File::isDirectory($directory)) {
             File::makeDirectory($directory, 0777, true);
         }
-        //  print_r($fileAssign->id);
-        //  print_r($fileAssign->path);
-        //    print_r($fileAssign->content);
 
-         $status = File::put($fullPath, $fileAssign->content, true);
-        echo $status."\n";
+        $status = File::put($fullPath, $fileAssign->content, true);
+        if ($status && isset($fileAssign->id)) {
+            $this->updateStatus($fileAssign->id, hash("crc32", $fileAssign->content));
+        }
 
     }
 
