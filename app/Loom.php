@@ -65,7 +65,7 @@ class Loom
             $fileStatus['id'] = $fileAssign->id;
             $fileStatus['version_hash'] = hash("crc32", $fileAssign->content);
         }
-
+//dump($fileStatus);
         return $fileStatus;
     }
 
