@@ -12,41 +12,45 @@ class Loom
     public function syncDatabase()
     {
 
-        $deleteFiles = DB::connection('loomysql')->table('file_contents')->where('content_hash', '')->get();
+        $fileContents = DB::connection('loomysql')->table('file_contents')->get();
+        $fileStats = [];
+        foreach ($fileContents as $fileContent) {
 
-        foreach ($deleteFiles as $deletFile) {
-            $this->deleteFile($deletFile);
+            if ($fileContent->content_hash != '' && $fileContent->content_hash != $fileContent->version_hash) {
+                $fileStats[] = $this->createFile($fileContent);
+            }
+
+            if ($fileContent->content_hash == '') {
+                $fileStats[] = $this->deleteFile($fileContent);
+            }
+        }
+        foreach ($fileStats as $fileStat) {
+            DB::connection('loomysql')->table('file_contents')->where('id',
+                $fileStat['id'])->update(['version_hash' => $fileStat['version_hash']]);
         }
 
-        $createFiles = DB::connection('loomysql')->table('file_contents')->whereColumn('content_hash', '!=', 'version_hash')->where('content_hash', '!=', '')->get();
-
-        foreach ($createFiles as $createFile) {
-            $this->createFile($createFile);
-        }
-
+        return true;
     }
 
 
     private function deleteFile($row)
     {
+        $fileStatus = ['id' => null, 'version_hash' => ''];
         $fullPath = str_replace('[base]', base_path(), $row->path);
 
         if (File::exists($fullPath)) {
             File::delete($fullPath);
-        //    echo "REMOVED: " . $fullPath . "\n";
-            $this->updateStatus($row->id, '');
+            //    echo "REMOVED: " . $fullPath . "\n";
+            $fileStatus['id'] = $row->id;
         }
+        return $fileStatus;
 
     }
 
-    private function updateStatus($id, $version_hash)
-    {
-        DB::connection('loomysql')->table('file_contents')->where('id', $id)->update(['version_hash' => $version_hash]);
-    }
 
     private function createFile($fileAssign)
     {
-
+        $fileStatus = ['id' => null, 'version_hash' => ''];
         $fullPath = str_replace('[base]', base_path(), $fileAssign->path);
         $sections = explode('/', $fullPath);
         array_pop($sections);
@@ -58,9 +62,11 @@ class Loom
 
         $status = File::put($fullPath, $fileAssign->content, true);
         if ($status && isset($fileAssign->id)) {
-            $this->updateStatus($fileAssign->id, hash("crc32", $fileAssign->content));
+            $fileStatus['id'] = $fileAssign->id;
+            $fileStatus['version_hash'] = hash("crc32", $fileAssign->content);
         }
 
+        return $fileStatus;
     }
 
 }
